@@ -10,53 +10,58 @@ export const DEFAULT_FLASHBOTS_RELAY = 'https://relay.flashbots.net'
 export const BASE_FEE_MAX_CHANGE_DENOMINATOR = 8
 
 export enum FlashbotsBundleResolution {
-  BundleIncluded,
-  BlockPassedWithoutInclusion,
-  AccountNonceTooHigh
+  BundleIncluded,    //表示该 bundle 已成功被包含在目标区块中
+  BlockPassedWithoutInclusion,   //目标区块已经生成，但是该 bundle 未能被包含在其中（交易失败）
+  AccountNonceTooHigh  //bundle 中使用的账户 nonce 值已经失效（比链上当前 nonce 值高），意味着该交易无法执行
 }
 
 export enum FlashbotsTransactionResolution {
-  TransactionIncluded,
-  TransactionDropped
+  TransactionIncluded,  //表示私有交易已成功被包含在链上区块中并得到确认
+  TransactionDropped   // 表示私有交易未能被打包进区块，已被舍弃
 }
 
 export enum FlashbotsBundleConflictType {
-  NoConflict,
-  NonceCollision,
-  Error,
-  CoinbasePayment,
-  GasUsed,
-  NoBundlesInBlock
+  NoConflict,   //表示 bundle 执行没有发生任何冲突
+  NonceCollision,   //两个不同交易使用了相同的 nonce 值，导致冲突
+  Error,    //执行过程中发生了错误
+  CoinbasePayment,  //与其他交易在支付给矿工的费用上发生冲突
+  GasUsed,   //与其他交易在 gas 使用量上发生冲突
+  NoBundlesInBlock   //目标区块中没有任何 bundle
 }
 
 export interface FlashbotsBundleRawTransaction {
-  signedTransaction: string
+  signedTransaction: string  // 已签名的交易数据，十六进制字符串格式
 }
 
 export interface FlashbotsBundleTransaction {
-  transaction: TransactionRequest
-  signer: Signer
+  transaction: TransactionRequest   //未签名的交易
+  signer: Signer   //签名者
 }
 
 export interface FlashbotsOptions {
-  minTimestamp?: number
-  maxTimestamp?: number
-  revertingTxHashes?: Array<string>
-  replacementUuid?: string
+  minTimestamp?: number // 最小时间戳  指定 bundle 执行的最早时间戳 可以用来延迟 bundle 的执行
+  maxTimestamp?: number // 最大时间戳 指定 bundle 执行的最晚时间戳  设置 bundle 的有效期限
+  revertingTxHashes?: Array<string>  // 可以回滚的交易哈希数组  指定允许回滚的交易哈希列表 当这些交易失败时允许回滚
+  replacementUuid?: string  // 替换标识符  用于替换先前提交的 bundle 的唯一标识符  可以用来更新或取消之前的 bundle
 }
 
 export interface TransactionAccountNonce {
-  hash: string
-  signedTransaction: string
-  account: string
-  nonce: number
+  hash: string  //存储交易的唯一标识哈希值
+  signedTransaction: string  //存储已签名的完整交易数据
+  account: string  //交易发送者的以太坊地址
+  nonce: number  //交易的 nonce 值，用于确保交易顺序
 }
 
 export interface FlashbotsTransactionResponse {
+  // 包含在 bundle 中的所有交易信息数组
   bundleTransactions: Array<TransactionAccountNonce>
+  // 等待 bundle 执行完成的异步方法
   wait: () => Promise<FlashbotsBundleResolution>
+  // 模拟执行 bundle 的异步方法
   simulate: () => Promise<SimulationResponse>
+  // 获取所有交易收据的异步方法
   receipts: () => Promise<Array<TransactionReceipt>>
+  // bundle 的唯一标识哈希值
   bundleHash: string
 }
 
@@ -68,45 +73,47 @@ export interface FlashbotsPrivateTransactionResponse {
 }
 
 export interface TransactionSimulationBase {
-  txHash: string
-  gasUsed: number
-  gasFees: string
-  gasPrice: string
-  toAddress: string
-  fromAddress: string
-  coinbaseDiff: string
+  txHash: string       // 交易哈希
+  gasUsed: number      // 实际使用的 gas 量
+  gasFees: string      // gas 费用总额
+  gasPrice: string     // gas 价格
+  toAddress: string    // 接收方地址
+  fromAddress: string  // 发送方地址
+  coinbaseDiff: string // 矿工获得的收益差值
 }
 
 export interface TransactionSimulationSuccess extends TransactionSimulationBase {
-  value: string
-  ethSentToCoinbase: string
+  value: string  // 交易发送的 ETH 数量
+  ethSentToCoinbase: string  // 直接发送给矿工的 ETH 数量
   coinbaseDiff: string
 }
 
 export interface TransactionSimulationRevert extends TransactionSimulationBase {
-  error: string
-  revert: string
+  error: string  // 错误信息
+  revert: string // 回滚原因
 }
 
 export type TransactionSimulation = TransactionSimulationSuccess | TransactionSimulationRevert
 
+//接口定义了 Flashbots 中继节点返回错误时的标准格式
 export interface RelayResponseError {
   error: {
-    message: string
-    code: number
+    message: string  // 错误信息描述
+    code: number     // 错误代码
   }
 }
 
+// 接口定义了交易包（bundle）模拟执行成功后的响应格式
 export interface SimulationResponseSuccess {
-  bundleGasPrice: BigNumber
-  bundleHash: string
-  coinbaseDiff: BigNumber
-  ethSentToCoinbase: BigNumber
-  gasFees: BigNumber
-  results: Array<TransactionSimulation>
-  totalGasUsed: number
-  stateBlockNumber: number
-  firstRevert?: TransactionSimulation
+  bundleGasPrice: BigNumber  // bundle 的 gas 价格
+  bundleHash: string         // bundle 的唯一标识哈希
+  coinbaseDiff: BigNumber    // 矿工收益的变化值
+  ethSentToCoinbase: BigNumber  // 直接发送给矿工的 ETH 数量
+  gasFees: BigNumber         // gas 费用总额
+  results: Array<TransactionSimulation>  // 所有交易的模拟结果数组
+  totalGasUsed: number        // bundle 中所有交易使用的总 gas 量
+  stateBlockNumber: number    // 模拟执行时的状态区块号
+  firstRevert?: TransactionSimulation  // 首个回滚的交易（如果有）
 }
 
 export type SimulationResponse = SimulationResponseSuccess | RelayResponseError
@@ -116,13 +123,13 @@ export type FlashbotsTransaction = FlashbotsTransactionResponse | RelayResponseE
 export type FlashbotsPrivateTransaction = FlashbotsPrivateTransactionResponse | RelayResponseError
 
 export interface GetUserStatsResponseSuccess {
-  is_high_priority: boolean
-  all_time_miner_payments: string
-  all_time_gas_simulated: string
-  last_7d_miner_payments: string
-  last_7d_gas_simulated: string
-  last_1d_miner_payments: string
-  last_1d_gas_simulated: string
+  is_high_priority: boolean  // 用户是否为高优先级用户
+  all_time_miner_payments: string   // 历史支付给矿工的总金额
+  all_time_gas_simulated: string    // 历史模拟使用的总 gas 量
+  last_7d_miner_payments: string    // 最近7天支付给矿工的金额
+  last_7d_gas_simulated: string     // 最近7天模拟使用的 gas 量
+  last_1d_miner_payments: string    // 最近1天支付给矿工的金额
+  last_1d_gas_simulated: string     // 最近1天模拟使用的 gas 量
 }
 
 export interface GetUserStatsResponseSuccessV2 {
@@ -138,20 +145,23 @@ export interface GetUserStatsResponseSuccessV2 {
 export type GetUserStatsResponse = GetUserStatsResponseSuccess | RelayResponseError
 export type GetUserStatsResponseV2 = GetUserStatsResponseSuccessV2 | RelayResponseError
 
+
+//接口用于记录 builder 的公钥和时间戳信息
+//接口主要用在 bundle 状态查询的响应中，用于追踪 bundle 在不同 builder 节点上的处理时间
 interface PubKeyTimestamp {
-  pubkey: string
-  timestamp: string
+  pubkey: string   // builder 的公钥
+  timestamp: string  // 时间戳
 }
 
 export interface GetBundleStatsResponseSuccess {
-  isSimulated: boolean
-  isSentToMiners: boolean
-  isHighPriority: boolean
-  simulatedAt: string
-  submittedAt: string
-  sentToMinersAt: string
-  consideredByBuildersAt: Array<PubKeyTimestamp>
-  sealedByBuildersAt: Array<PubKeyTimestamp>
+  isSimulated: boolean   // bundle 是否已经过模拟测试
+  isSentToMiners: boolean // bundle 是否已发送给矿工
+  isHighPriority: boolean // 是否为高优先级 bundle
+  simulatedAt: string  // bundle 模拟测试的时间
+  submittedAt: string  // bundle 提交时间
+  sentToMinersAt: string  // bundle 发送给矿工的时间
+  consideredByBuildersAt: Array<PubKeyTimestamp>  // bundle 被 builder 节点处理的时间戳数组
+  sealedByBuildersAt: Array<PubKeyTimestamp> // bundle 被 builder 节点封装的时间戳数组
 }
 
 export interface GetBundleStatsResponseSuccessV2 {
@@ -166,43 +176,68 @@ export interface GetBundleStatsResponseSuccessV2 {
 export type GetBundleStatsResponse = GetBundleStatsResponseSuccess | RelayResponseError
 export type GetBundleStatsResponseV2 = GetBundleStatsResponseSuccessV2 | RelayResponseError
 
+//接口定义了从 Flashbots Blocks API 返回的单笔交易详情
 interface BlocksApiResponseTransactionDetails {
-  transaction_hash: string
-  tx_index: number
-  bundle_type: 'rogue' | 'flashbots' | 'mempool'
-  bundle_index: number
-  block_number: number
-  eoa_address: string
-  to_address: string
-  gas_used: number
-  gas_price: string
-  coinbase_transfer: string
-  eth_sent_to_fee_recipient: string
-  total_miner_reward: string
-  fee_recipient_eth_diff: string
+  // 交易基本信息
+  transaction_hash: string      // 交易哈希
+  tx_index: number             // 交易在区块中的索引
+  bundle_type: 'rogue' | 'flashbots' | 'mempool'  // 交易类型
+  bundle_index: number         // 在 bundle 中的索引
+  block_number: number         // 区块号
+  
+  // 地址信息
+  eoa_address: string         // 发送方外部账户地址
+  to_address: string          // 接收方地址
+  
+  // Gas 相关
+  gas_used: number           // 使用的 gas 量
+  gas_price: string          // gas 价格
+  
+  // 收益相关
+  coinbase_transfer: string           // 转给矿工的金额
+  eth_sent_to_fee_recipient: string   // 发送给收费接收者的 ETH
+  total_miner_reward: string          // 矿工总收益 coinbase_transfer（直接转账）
+                                          // gas 费用中的 priority fee（优先费）
+                                          // 其他可能的收益
+  fee_recipient_eth_diff: string      // 收费接收者的 ETH 变化
 }
 
+
 interface BlocksApiResponseBlockDetails {
-  block_number: number
-  fee_recipient: string
-  fee_recipient_eth_diff: string
-  miner_reward: string
-  miner: string
-  coinbase_transfers: string
-  eth_sent_to_fee_recipient: string
-  gas_used: number
-  gas_price: string
-  transactions: Array<BlocksApiResponseTransactionDetails>
+  // 区块基本信息
+  block_number: number                // 区块号
+  
+  // 收益接收方信息
+  fee_recipient: string              // 收费接收者地址
+  fee_recipient_eth_diff: string     // 收费接收者的 ETH 余额变化
+  
+  // 矿工相关信息
+  miner: string                      // 矿工地址
+  miner_reward: string               // 矿工获得的总奖励
+  coinbase_transfers: string         // 转给矿工的直接转账总额
+  eth_sent_to_fee_recipient: string  // 发送给收费接收者的 ETH
+  
+  // Gas 相关
+  gas_used: number                   // 区块使用的总 gas
+  gas_price: string                  // 区块的平均 gas 价格
+  
+  // 交易列表
+  transactions: Array<BlocksApiResponseTransactionDetails> // 区块中的所有交易
 }
 
 export interface BlocksApiResponse {
-  latest_block_number: number
-  blocks: Array<BlocksApiResponseBlockDetails>
+  latest_block_number: number  // 最新区块号
+  blocks: Array<BlocksApiResponseBlockDetails>  // 区块详情数组
 }
 
+//接口用于描述 Flashbots bundle 发生冲突时的详细信息
+//接口主要用于诊断和分析 Flashbots bundle 执行失败的原因，帮助开发者优化其 MEV 策略
 export interface FlashbotsBundleConflict {
+  // 与当前 bundle 发生冲突的其他 bundle 中的交易详情
   conflictingBundle: Array<BlocksApiResponseTransactionDetails>
+  // 初始模拟执行的结果
   initialSimulation: SimulationResponseSuccess
+  // 冲突类型
   conflictType: FlashbotsBundleConflictType
 }
 
@@ -229,6 +264,7 @@ export type FlashbotsCancelBidResponse = FlashbotsCancelBidResponseSuccess | Rel
 
 type RpcParams = Array<string[] | string | number | Record<string, unknown>>
 
+/** 超时时间主要用在以下场景  等待 bundle 被打包进区块  等待单笔交易被确认*/
 const TIMEOUT_MS = 5 * 60 * 1000
 
 export class FlashbotsBundleProvider extends providers.JsonRpcProvider {
@@ -243,6 +279,8 @@ export class FlashbotsBundleProvider extends providers.JsonRpcProvider {
     this.connectionInfo = connectionInfoOrUrl
   }
 
+  //速率限制处理
+  //当 API 请求被限流时会触发此回调
   static async throttleCallback(): Promise<boolean> {
     console.warn('Rate limited')
     return false
@@ -342,7 +380,9 @@ export class FlashbotsBundleProvider extends providers.JsonRpcProvider {
    * @param txHashes hashes of transactions in the bundle
    */
   static generateBundleHash(txHashes: Array<string>): string {
+    // 1. 移除每个交易哈希的 "0x" 前缀并连接
     const concatenatedHashes = txHashes.map((txHash) => txHash.slice(2)).join('')
+    // 2. 添加 "0x" 前缀并计算 keccak256 哈希
     return keccak256(`0x${concatenatedHashes}`)
   }
 
